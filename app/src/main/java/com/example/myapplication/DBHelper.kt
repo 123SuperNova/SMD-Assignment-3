@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 
 
 class DBHelper private constructor(context: Context) :
@@ -68,6 +69,8 @@ class DBHelper private constructor(context: Context) :
         val contentValues = ContentValues().apply {
             put("phonenum", newPhone)
         }
+        Log.d("DBHelper", "id: $id" +
+                " newPhoneL: $newPhone")
         val result = db.update("CONTACTPHONE", contentValues, "id = ?", arrayOf(id))
         db.close()
         return result > 0

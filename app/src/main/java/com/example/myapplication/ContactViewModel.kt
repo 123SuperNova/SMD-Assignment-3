@@ -25,20 +25,35 @@ class ContactItemViewModel(private val dbHelper: DBHelper) : ViewModel() {
 
     fun getPhone(contact_id: String): List<ContactPhoneNumber>? {
         var temp = dbHelper.allPhoneNumbersOf(contact_id)
+        _phoneList.value = emptyList()
         for (t in temp){
-            _phoneList.value = _phoneList.value?.plus(EditPhoneNumber(t.id, t.contact_id, t.phoneNumber))
+            _phoneList.value = (_phoneList.value ?: emptyList()) + EditPhoneNumber(t.id, t.contact_id, t.phoneNumber)
         }
         return temp
     }
 
-    fun UpdateContactName(item: EditContact) {
+    fun tempUpdateContactName(updatedContact: EditContact) {
+        _contact.value = updatedContact
+    }
+
+    fun tempUpdateContactPhone(updatedPhone: EditPhoneNumber) {
+        // Find the position of the updated phone in the list and update it
+        val updatedList = _phoneList.value?.toMutableList() ?: mutableListOf()
+        val index = updatedList.indexOfFirst { it.id == updatedPhone.id }
+        if (index != -1) {
+            updatedList[index] = updatedPhone
+            _phoneList.value = updatedList
+        }
+    }
+
+    fun UpdateDBContactName(item: EditContact) {
         viewModelScope.launch {
             dbHelper.updateContactName(item.id.toString(), item.name)
             getContact(item.id.toString())
         }
     }
 
-    fun UpdateContactPhone(item: EditPhoneNumber) {
+    fun UpdateDBContactPhone(item: EditPhoneNumber) {
         viewModelScope.launch {
             dbHelper.updateContactNumber(item.id, item.phoneNumber)
             getPhone(item.contact_id.toString())

@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,9 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -170,14 +169,14 @@ fun EditContactPage(
 
         val contact by viewModel.contact.observeAsState()
         val phoneList by viewModel.phoneList.observeAsState(emptyList())
-
+        Log.d("ECA", "Contact: $contact PhoneList: $phoneList")
 
         // Contact Name
         Spacer(modifier = Modifier.height(16.dp))
         if (contact != null) {
             OutlinedTextField(
                 value = contact!!.name,
-                onValueChange = { contact!!.name = it },
+                onValueChange = { viewModel.tempUpdateContactName(contact!!.copy(name = it)) },
                 textStyle = TextStyle(
                     textAlign = TextAlign.Center,
                     fontSize = 30.sp
@@ -197,7 +196,7 @@ fun EditContactPage(
                 .padding(8.dp)
         ) {
             items(phoneList) { phoneNum ->
-                EditPhoneNumItem(phoneid = phoneNum.id, contactPhoneNumber = phoneList, focusRequester = focusRequester)
+                EditPhoneNumItem(contactPhoneNumber = phoneNum, viewModel=viewModel, focusRequester = focusRequester)
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -221,9 +220,11 @@ fun EditContactPage(
                             return@Button;
                         }
                     }
-                    contact?.let { viewModel.UpdateContactName(it) }
+                    Log.d("ECA", "newContact: $contact" +
+                            " newPhoneL: $phoneList")
+                    contact?.let { viewModel.UpdateDBContactName(it) }
                     for (pN in phoneList) {
-                        viewModel.UpdateContactPhone(pN)
+                        viewModel.UpdateDBContactPhone(pN)
                     }
                     mToast(editContactActivity, "Contact Updated.")
                 },
@@ -239,8 +240,8 @@ fun EditContactPage(
 
 @Composable
 fun EditPhoneNumItem(
-    phoneid: String,
-    contactPhoneNumber: List<EditPhoneNumber>,
+    contactPhoneNumber: EditPhoneNumber,
+    viewModel: ContactItemViewModel,
     focusRequester: FocusRequester
 ){
     val ctx = LocalContext.current
@@ -259,12 +260,9 @@ fun EditPhoneNumItem(
                 .weight(1f)
                 .padding(8.dp)
         ) {
-            var temp by remember {
-                mutableStateOf(contactPhoneNumber.first() { it.id == phoneid })
-            }
             OutlinedTextField(
-                value = temp.phoneNumber,
-                onValueChange = { temp = temp.copy(phoneNumber = it) },
+                value = contactPhoneNumber.phoneNumber,
+                onValueChange = { viewModel.tempUpdateContactPhone(EditPhoneNumber(contactPhoneNumber.id, contactPhoneNumber.contact_id, it)).toString() },
                 //label = { Text(contactPhoneNumber.phoneNumber) },
                 modifier = Modifier
                     .fillMaxWidth()
