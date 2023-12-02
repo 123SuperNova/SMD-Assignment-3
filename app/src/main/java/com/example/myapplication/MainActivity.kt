@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -144,25 +145,40 @@ fun MainPage(
 
         // Contacts List
         LazyColumn (
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(8.dp)
-        ){
-            items(contactList) { contact ->
-                ContactListItem(contact = contact) {
-                    // Handle item click and navigate to ContactPage
-                    // Create an explicit intent to start SecondActivity
-                    val intent = Intent(mainActivity, ContactViewActivity::class.java)
-
-                    // Add any extra data you want to pass to SecondActivity
-                    intent.putExtra("key", contact.id)
-
-                    // Start SecondActivity
-                    mainActivity.startActivity(intent)
+        ) {
+            if (contactList.isEmpty()) {
+                item {
+                    Text(
+                        text = "There are no contacts yet,\nclick the + button to add new contacts.",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(16.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                items(contactList) { contact ->
+                    ContactListItem(contact = contact) {
+                        // Handle item click and navigate to ContactPage
+                        // Create an explicit intent to start SecondActivity
+                        val intent = Intent(mainActivity, ContactViewActivity::class.java)
+
+                        // Add any extra data you want to pass to SecondActivity
+                        intent.putExtra("key", contact.id)
+
+                        // Start SecondActivity
+                        mainActivity.startActivity(intent)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
+    }
 }
 
 @Composable
@@ -207,6 +223,7 @@ fun ContactListItem(contact: Contact, onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = contact.name,
+            color = Color.Black,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )

@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -67,6 +70,7 @@ fun DeleteContactsPage(
     contactsList: List<Contact>,
     onDeleteSelectedContacts: (List<Contact>) -> Unit
 ) {
+    var checked by remember { mutableStateOf(false) }
     var contactsToDelete by remember { mutableStateOf(emptyList<Contact>()) }
 
     Column(
@@ -79,7 +83,8 @@ fun DeleteContactsPage(
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     IconButton(onClick = {
                         // Go back to Main Page
@@ -88,6 +93,25 @@ fun DeleteContactsPage(
                         Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = null)
                     }
                     Text("Delete Contacts")
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(text = "All")
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = {
+                                checked = it
+                                contactsToDelete = if (it) {
+                                    contactsList
+                                } else {
+                                    emptyList()
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.CenterVertically)
+                        )
+                    }
                 }
             },
             actions = {
@@ -97,22 +121,38 @@ fun DeleteContactsPage(
 
         // Contacts List
         LazyColumn (
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            items(contactsList) { contact ->
-                ContactListItemWithCheckbox(
-                    contact = contact,
-                    isChecked = contactsToDelete.contains(contact)
-                ) { isChecked ->
-                    // Handle checkbox state change
-                    contactsToDelete = if (isChecked) {
-                        contactsToDelete + contact
-                    } else {
-                        contactsToDelete - contact
-                    }
+            if (contactsList.isEmpty()) {
+                item {
+                    Text(
+                        text = "There are no contacts to delete.",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                                .padding(16.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                items(contactsList) { contact ->
+                    ContactListItemWithCheckbox(
+                        contact = contact,
+                        isChecked = contactsToDelete.contains(contact)
+                    ) { isChecked ->
+                        // Handle checkbox state change
+                        contactsToDelete = if (isChecked) {
+                            contactsToDelete + contact
+                        } else {
+                            contactsToDelete - contact
+                        }
+                        checked = contactsList == contactsToDelete
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
 
@@ -134,7 +174,11 @@ fun DeleteContactsPage(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                Text(text = "Delete Selected Contacts")
+                Text(
+                    text = "Delete Selected Contacts",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

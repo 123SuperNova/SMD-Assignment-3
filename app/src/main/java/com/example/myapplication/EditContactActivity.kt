@@ -56,6 +56,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -231,7 +232,9 @@ fun EditContactPage(
                 onValueChange = { viewModel.tempUpdateContactName(contact!!.copy(name = it)) },
                 textStyle = TextStyle(
                     textAlign = TextAlign.Center,
-                    fontSize = 30.sp
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 40.sp
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,7 +288,11 @@ fun EditContactPage(
                     .fillMaxWidth()
                     .padding(8.dp)
             ) {
-                Text("Save")
+                Text(
+                    text = "Save",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

@@ -49,6 +49,9 @@ android {
         }
     }
     buildToolsVersion = "34.0.0"
+    dependenciesInfo {
+        includeInApk = true
+    }
 }
 
 dependencies {

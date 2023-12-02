@@ -1,19 +1,21 @@
 package com.example.myapplication
 
-import androidx.compose.foundation.Image
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,8 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 
 
 @Composable
@@ -37,6 +40,7 @@ fun ContactListItemWithCheckbox(
 ) {
     // Use remember or mutableStateOf to manage the checkbox state
     var checked by remember { mutableStateOf(isChecked) }
+    checked = isChecked
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -68,18 +72,31 @@ fun ContactListItemWithCheckbox(
                 .background(Color.Gray)
         ) {
             // You can load the contact image here
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (contact.photoUri == Uri.EMPTY){
+                Icon(imageVector = Icons.Default.Person,
+                    contentDescription = "Profile Pic",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(56.dp))
+            }
+            else{
+                AsyncImage(
+                    model = contact.photoUri,
+                    contentDescription = "Profile Pic",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
         // Contact Name
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "${contact.name}",
-            modifier = Modifier.weight(1f)
+            text = contact.name,
+            color = Color.Black,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .weight(1f)
+
         )
     }
 }

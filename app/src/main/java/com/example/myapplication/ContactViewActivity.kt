@@ -195,6 +195,7 @@ fun ContactPage(
                         Text(
                             text = contact!!.name,
                             fontSize = 40.sp,
+                            color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .padding(8.dp)
@@ -280,6 +281,8 @@ fun PhoneNumItem(contactPhoneNumber: ContactPhoneNumber){
             Text(
                 text = contactPhoneNumber.phoneNumber,
                 fontSize = 24.sp,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .weight(1f)
             )

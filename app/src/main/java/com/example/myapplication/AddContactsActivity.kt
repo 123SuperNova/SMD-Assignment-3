@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -91,9 +94,9 @@ class AddContactsActivity : ComponentActivity() {
         return phoneNumbers
     }
 
-    fun fetchContactNames() : ArrayList<Contact> {
+    fun fetchContactNames(): ArrayList<Contact> {
         // Use the ContentResolver to query the contacts
-        var allContacts = ArrayList<Contact>()
+        val allContacts = ArrayList<Contact>()
         val cursor = contentResolver.query(
             ContactsContract.Contacts.CONTENT_URI,
             null,
@@ -104,17 +107,17 @@ class AddContactsActivity : ComponentActivity() {
 
         // Check if the cursor is not null and move to the first entry
         cursor?.use {
-            if (it.moveToFirst()) {
-                val displayNameIndex = it.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-                val contactIdIndex = it.getColumnIndex(ContactsContract.Contacts._ID)
+            val displayNameIndex = it.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+            val contactIdIndex = it.getColumnIndex(ContactsContract.Contacts._ID)
 
-                // Iterate over the cursor to get contact names
-                do {
-                    val displayName = it.getString(displayNameIndex)
-                    val contactId = it.getString(contactIdIndex)
+            while (it.moveToNext()) {
+                val displayName = it.getString(displayNameIndex)
+                val contactId = it.getString(contactIdIndex)
 
+                // Check if displayName is not null before adding to the list
+                if ((displayName != null) and (contactId != null)) {
                     allContacts.add(Contact(contactId.toLong(), displayName, Uri.EMPTY))
-                } while (it.moveToNext())
+                }
             }
         }
 
@@ -142,6 +145,7 @@ fun AddContactsPage(
 
     // Use remember or mutableStateOf to manage the new contact list
     var newContactList by remember { mutableStateOf(emptyList<Contact>()) }
+    var checked by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -153,9 +157,28 @@ fun AddContactsPage(
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Add New Contacts")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(text = "All")
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = {
+                                checked = it
+                                newContactList = if (it) {
+                                    contacts
+                                } else {
+                                    emptyList()
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.CenterVertically)
+                        )
+                    }
                 }
             },
             navigationIcon = {
@@ -173,23 +196,40 @@ fun AddContactsPage(
 
         // Contacts List
         LazyColumn (
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            items(contacts) { contact ->
-                ContactListItemWithCheckbox(
-                    contact = contact,
-                    isChecked = newContactList.contains(contact),
-                    onCheckedChange = { isChecked ->
-                        // Handle checkbox state change
-                        newContactList = if (isChecked) {
-                            newContactList + contact
-                        } else {
-                            newContactList - contact
+            if (contacts.isEmpty()){
+                item{
+                    Text(
+                        text = "There are no new contacts to add.",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                                .padding(16.dp)
+                    )
+                }
+            }
+            else {
+                items(contacts) { contact ->
+                    ContactListItemWithCheckbox(
+                        contact = contact,
+                        isChecked = newContactList.contains(contact),
+                        onCheckedChange = { isChecked ->
+                            // Handle checkbox state change
+                            newContactList = if (isChecked) {
+                                newContactList + contact
+                            } else {
+                                newContactList - contact
+                            }
+                            checked = contacts == newContactList
                         }
-                    }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
 
@@ -211,7 +251,11 @@ fun AddContactsPage(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                Text(text = "Add Selected Contacts")
+                Text(
+                    text = "Add Selected Contacts",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
