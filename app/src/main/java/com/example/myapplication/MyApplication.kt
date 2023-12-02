@@ -10,14 +10,11 @@ class MyApplication : Application() {
     lateinit var contactViewModel: ContactViewModel
         private set
 
-    lateinit var contactItemViewModel: ContactItemViewModel
-        private set
 
     override fun onCreate() {
         super.onCreate()
 
         dbHelper = DBHelper.getInstance(applicationContext)
         contactViewModel = ContactViewModel(dbHelper)
-        contactItemViewModel = ContactItemViewModel(dbHelper)
     }
 }

@@ -2,14 +2,13 @@ package com.example.myapplication
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
-import android.util.Log
 import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -28,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,14 +65,18 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import java.io.Serializable
+import kotlin.properties.Delegates
 
 class EditContactActivity : ComponentActivity() {
+    private var contactID by Delegates.notNull<Long>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val myApplication = application as MyApplication
 
+        contactID = intent.serializable("key") ?: 0
 
         setContent {
             MyApplicationTheme {
@@ -87,6 +92,17 @@ class EditContactActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    private inline fun <reified T : Serializable> Intent.serializable(key: String): T? = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> getSerializableExtra(key, T::class.java)
+        else -> @Suppress("DEPRECATION") getSerializableExtra(key) as? T
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val myApplication = application as MyApplication
+        myApplication.contactViewModel.getContact2(contactID.toString())
+        myApplication.contactViewModel.getPhone2(contactID.toString())
     }
 }
 
@@ -106,7 +122,6 @@ fun EditContactPage(
 
         val contact by viewModel.contact.observeAsState()
         val phoneList by viewModel.currphoneList.observeAsState(emptyList())
-        Log.d("ECA", "Contact: $contact PhoneList: $phoneList")
 
         val singlePhotoPicker = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia(),
@@ -115,7 +130,6 @@ fun EditContactPage(
                 if (uri != null) {
                     editContactActivity.contentResolver.takePersistableUriPermission(uri, flag)
                 }
-                Log.d("ECA Photo", "$uri")
                 if ((uri != Uri.EMPTY) and (uri != null)) {
                     if (contact?.id != null) {
                         viewModel.tempUpdateContactName(
@@ -236,6 +250,7 @@ fun EditContactPage(
                     fontWeight = FontWeight.Bold,
                     fontSize = 40.sp
                 ),
+                singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
@@ -247,7 +262,7 @@ fun EditContactPage(
         LazyColumn (
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1.0f)
+                .weight(2.0f)
                 .padding(8.dp)
         ) {
             items(phoneList) { phoneNum ->
@@ -262,6 +277,7 @@ fun EditContactPage(
                 .fillMaxWidth()
                 .background(Color.White)
                 .padding(16.dp)
+                .weight(1f)
         ) {
             Button(
                 onClick = {
@@ -275,11 +291,9 @@ fun EditContactPage(
                             return@Button;
                         }
                     }
-                    Log.d("ECA", "newContact: $contact" +
-                            " newPhoneL: $phoneList")
-                    contact?.let { viewModel.UpdateDBContactName(it) }
+                    contact?.let { viewModel.updateDBContactName(it) }
                     for (pN in phoneList) {
-                        viewModel.UpdateDBContactPhone(pN)
+                        viewModel.updateDBContactPhone(pN)
                     }
                     mToast(editContactActivity, "Contact Updated.")
                     editContactActivity.finish()
@@ -298,13 +312,6 @@ fun EditContactPage(
     }
 }
 
-
-
-
-fun openGallery(launcher: ActivityResultLauncher<String>) {
-    launcher.launch("image/*")
-}
-
 @Composable
 fun EditPhoneNumItem(
     contactPhoneNumber: EditPhoneNumber,
@@ -319,23 +326,32 @@ fun EditPhoneNumItem(
             .clip(RoundedCornerShape(8.dp))
             .background(Color.White)
             .padding(8.dp)
-    ){
-        Row(
-            horizontalArrangement = Arrangement.End,
+    ) {
+        OutlinedTextField(
+            value = contactPhoneNumber.phoneNumber,
+            singleLine = true,
+            onValueChange = {
+                viewModel.tempUpdateContactPhone(
+                    EditPhoneNumber(
+                        contactPhoneNumber.id,
+                        contactPhoneNumber.contact_id,
+                        it
+                    )
+                ).toString()
+            },
+            //label = { Text(contactPhoneNumber.phoneNumber) },
+            keyboardOptions = KeyboardOptions.Default.copy(
+                keyboardType = KeyboardType.Number
+            ),
+            textStyle = TextStyle(
+                textAlign = TextAlign.Center,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp
+            ),
             modifier = Modifier
-                .weight(1f)
-                .padding(8.dp)
-        ) {
-            OutlinedTextField(
-                value = contactPhoneNumber.phoneNumber,
-                onValueChange = { viewModel.tempUpdateContactPhone(EditPhoneNumber(contactPhoneNumber.id, contactPhoneNumber.contact_id, it)).toString() },
-                //label = { Text(contactPhoneNumber.phoneNumber) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .focusRequester(focusRequester)
-            )
-
-        }
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+        )
     }
 }

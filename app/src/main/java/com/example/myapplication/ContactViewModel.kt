@@ -1,14 +1,12 @@
 package com.example.myapplication
 
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-
-class ContactItemViewModel(private val dbHelper: DBHelper) : ViewModel() {
-
-}
+import java.io.File
 
 class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     private val _contact = MutableLiveData<EditContact>()
@@ -24,13 +22,13 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     val phoneList: LiveData<List<ContactPhoneNumber>> get() = _phoneList
 
     fun getContact2(id: String): Contact? {
-        var temp = dbHelper.getContactFromId(id)
+        val temp = dbHelper.getContactFromId(id)
         _contact.value = EditContact(temp.id, temp.name, temp.photoUri)
         return temp
     }
 
     fun getPhone2(contact_id: String): List<ContactPhoneNumber>? {
-        var temp = dbHelper.allPhoneNumbersOf(contact_id)
+        val temp = dbHelper.allPhoneNumbersOf(contact_id)
         _currphoneList.value = emptyList()
         for (t in temp){
             _currphoneList.value = (_currphoneList.value ?: emptyList()) + EditPhoneNumber(t.id, t.contact_id, t.phoneNumber)
@@ -52,7 +50,7 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
         }
     }
 
-    fun UpdateDBContactName(item: EditContact) {
+    fun updateDBContactName(item: EditContact) {
         viewModelScope.launch {
             dbHelper.updateContactName(item.id.toString(), item.name)
             dbHelper.updateContactPhoto(item.id.toString(), item.photoUri.toString())
@@ -60,7 +58,7 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
         }
     }
 
-    fun UpdateDBContactPhone(item: EditPhoneNumber) {
+    fun updateDBContactPhone(item: EditPhoneNumber) {
         viewModelScope.launch {
             dbHelper.updateContactNumber(item.id, item.phoneNumber)
             refreshPhoneData()
@@ -124,6 +122,26 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
         }
     }
 
+    fun checkAllImageUris() {
+        viewModelScope.launch {
+            for (contact in _contactList.value.orEmpty()) {
+                val imageUri = contact.photoUri
+                // Do something with the imageUri, for example, check if it exists
+                if (imageUriExists(imageUri)) {
+                    // Image URI exists, handle accordingly
+                } else {
+                    // Image URI does not exist, handle accordingly
+                    updateDBContactName(EditContact(contact.id, contact.name, Uri.EMPTY))
+                }
+            }
+            refreshContactData()
+        }
+    }
 
+    fun imageUriExists(uri: Uri?): Boolean {
+        // Implement logic to check if the imageUri exists
+        // For example, you can check if it's not null and if the file exists
+        return uri != null && File(uri.path ?: "").exists()
+    }
 }
 

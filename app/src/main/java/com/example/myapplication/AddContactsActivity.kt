@@ -198,8 +198,9 @@ fun AddContactsPage(
         LazyColumn (
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(8.dp)
+                .weight(6f)
         ) {
             if (contacts.isEmpty()){
                 item{
@@ -233,13 +234,12 @@ fun AddContactsPage(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-
         // Add Selected Contacts Button
         Row(
             modifier = Modifier
                 .background(Color.White)
                 .padding(16.dp)
+                .weight(1f)
         ) {
             Button(
                 onClick = {
@@ -249,7 +249,6 @@ fun AddContactsPage(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
             ) {
                 Text(
                     text = "Add Selected Contacts",

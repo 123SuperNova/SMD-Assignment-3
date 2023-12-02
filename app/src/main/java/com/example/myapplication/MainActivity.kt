@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -74,6 +73,7 @@ class MainActivity : ComponentActivity(){
         setContent {
             MyApplicationTheme {
                 val myApplication = application as MyApplication
+                myApplication.contactViewModel.checkAllImageUris()
                 MainPage(
                     this,
                     myApplication.contactViewModel
@@ -201,7 +201,6 @@ fun ContactListItem(contact: Contact, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             // You can load the contact image here
-            Log.d("MainAPhoto:", "photouri: ${contact.photoUri}")
             if (contact.photoUri == Uri.EMPTY){
                 Icon(imageVector = Icons.Default.Person,
                     contentDescription = "Profile Pic",

@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,10 +65,6 @@ class ContactViewActivity : ComponentActivity() {
 
         val myApplication = application as MyApplication
 
-
-        //contact = myApplication.contactItemViewModel.getContact(contactID.toString())!!
-
-        //contactPhoneList = myApplication.contactItemViewModel.getPhone(contactID.toString())!!
 
         setContent {
             MyApplicationTheme {
@@ -230,9 +227,10 @@ fun PhoneNumItem(contactPhoneNumber: ContactPhoneNumber){
             .padding(8.dp)
     ){
         Row(
-            horizontalArrangement = Arrangement.Start,
+            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
-                .weight(1f)
+                .weight(0.45f)
+                .padding(4.dp)
         ) {
             IconButton(onClick = {
                 // Open dialer with number
@@ -250,7 +248,7 @@ fun PhoneNumItem(contactPhoneNumber: ContactPhoneNumber){
                     mToast(ctx, "An error occurred")
                 }
             }) {
-                Icon(imageVector = Icons.Filled.Phone, contentDescription = "Dial")
+                Icon(imageVector = Icons.Filled.Phone, contentDescription = "Dial", tint = Color.Black)
             }
             IconButton(onClick = {
                 // Open SMS app with pre-populated number
@@ -271,21 +269,28 @@ fun PhoneNumItem(contactPhoneNumber: ContactPhoneNumber){
                     Toast.makeText(ctx, "No SMS app found", Toast.LENGTH_LONG).show()
                 }
             }) {
-                Icon(imageVector = Icons.Filled.Message, contentDescription = "Message")
+                Icon(imageVector = Icons.Filled.Message, contentDescription = "Message", tint = Color.Black)
             }
         }
-        Row(
+        LazyRow(
             horizontalArrangement = Arrangement.End,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(12.dp)
         ) {
-            Text(
-                text = contactPhoneNumber.phoneNumber,
-                fontSize = 24.sp,
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .weight(1f)
-            )
+            item{
+                Text(
+                    text = contactPhoneNumber.phoneNumber,
+                    fontSize = 24.sp,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
+            }
         }
     }
 }

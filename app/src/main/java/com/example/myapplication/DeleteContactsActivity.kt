@@ -86,14 +86,7 @@ fun DeleteContactsPage(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    IconButton(onClick = {
-                        // Go back to Main Page
-                        deleteContactsActivity.finish()
-                    }) {
-                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = null)
-                    }
                     Text("Delete Contacts")
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -114,6 +107,14 @@ fun DeleteContactsPage(
                     }
                 }
             },
+            navigationIcon = {
+                IconButton(onClick = {
+                    // Go back to Main Page
+                    deleteContactsActivity.finish()
+                }) {
+                    Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = null)
+                }
+            },
             actions = {
                 // If you have additional actions, you can add them here
             }
@@ -125,6 +126,7 @@ fun DeleteContactsPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
+                .weight(6f)
         ) {
             if (contactsList.isEmpty()) {
                 item {
@@ -156,12 +158,11 @@ fun DeleteContactsPage(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-
         Row(
             modifier = Modifier
                 .background(Color.White)
                 .padding(16.dp)
+                .weight(1f)
         ) {
             // Delete Button
             Button(
@@ -172,7 +173,6 @@ fun DeleteContactsPage(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
             ) {
                 Text(
                     text = "Delete Selected Contacts",
