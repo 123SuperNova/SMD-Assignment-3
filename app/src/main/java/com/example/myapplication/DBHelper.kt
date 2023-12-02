@@ -4,14 +4,17 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 
 
 class DBHelper private constructor(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     override fun onCreate(db: SQLiteDatabase) {
         var sql = "CREATE TABLE CONTACT (id TEXT PRIMARY KEY, " +
-                "name TEXT NOT NULL)"
+                "name TEXT NOT NULL," +
+                "photoUri TEXT)"
         db.execSQL(sql)
         // Create the CONTACTPHONE table with a foreign key constraint
         var sql2 = "CREATE TABLE CONTACTPHONE (id TEXT PRIMARY KEY, " +
@@ -31,11 +34,12 @@ class DBHelper private constructor(context: Context) :
         onUpgrade(db, oldVersion, newVersion)
     }
 
-    fun addContactData(name: String?, id: String?): Boolean {
+    fun addContactData(name: String?, id: String?, photoUri: String?): Boolean {
         val db = this.writableDatabase
         val contentValues = ContentValues().apply {
             put("name", name)
             put("id", id)
+            put("photoUri", photoUri)
         }
         val result = db.insert("CONTACT", null, contentValues)
         db.close()
@@ -58,6 +62,16 @@ class DBHelper private constructor(context: Context) :
         val db = this.writableDatabase
         val contentValues = ContentValues().apply {
             put("name", newName)
+        }
+        val result = db.update("CONTACT", contentValues, "id = ?", arrayOf(id))
+        db.close()
+        return result > 0
+    }
+
+    fun updateContactPhoto(id: String, photoUri: String?): Boolean {
+        val db = this.writableDatabase
+        val contentValues = ContentValues().apply {
+            put("photoUri", photoUri)
         }
         val result = db.update("CONTACT", contentValues, "id = ?", arrayOf(id))
         db.close()
@@ -98,7 +112,7 @@ class DBHelper private constructor(context: Context) :
             val cursor = db.rawQuery(selectQuery, null)
             if (cursor.moveToFirst()) {
                 do {
-                    val user = Contact(id = cursor.getLong(0), name = cursor.getString(1))
+                    val user = Contact(id = cursor.getLong(0), name = cursor.getString(1), photoUri = cursor.getString(2).toUri())
                     userList.add(user)
                 } while (cursor.moveToNext())
             }
@@ -152,7 +166,7 @@ class DBHelper private constructor(context: Context) :
     }
 
     fun getContactFromId(reqid: String?): Contact {
-        var contact = Contact(0, "")
+        var contact = Contact(0, "", Uri.EMPTY)
 
         // Use a placeholder for the reqid parameter
         val selectQuery = "SELECT * FROM CONTACT WHERE id = ?"
@@ -163,7 +177,7 @@ class DBHelper private constructor(context: Context) :
 
         if (cursor.moveToFirst()) {
             do {
-                val user = Contact(id = cursor.getLong(0), name = cursor.getString(1))
+                val user = Contact(id = cursor.getLong(0), name = cursor.getString(1), photoUri = cursor.getString(2).toUri())
                 contact = user
             } while (cursor.moveToNext())
         }

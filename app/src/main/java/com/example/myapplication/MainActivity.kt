@@ -4,11 +4,15 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -28,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,34 +47,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity(){
-    lateinit var dbHelper: DBHelper
-    private val READ_CONTACTS_PERMISSION_CODE = 123
-
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Check if the READ_CONTACTS permission is granted
-        // Initialize DBHelper with the context (this)
-        dbHelper = DBHelper.getInstance(applicationContext)
-
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_CONTACTS
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            // Permission is granted, proceed with your logic
-            //fetchContactNames()
+            // Permission is granted
+
         } else {
             // Permission is not granted, request it
-            requestPermission()
+            requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
         setContent {
             MyApplicationTheme {
@@ -82,34 +81,14 @@ class MainActivity : ComponentActivity(){
         }
     }
 
-    private fun requestPermission() {
-        // Request the READ_CONTACTS permission
-        ActivityCompat.requestPermissions(
-            this,
-            arrayOf(Manifest.permission.READ_CONTACTS),
-            READ_CONTACTS_PERMISSION_CODE
-        )
-    }
-
-    // Handle the result of the permission request
-    @Deprecated("Deprecated in Java")
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            READ_CONTACTS_PERMISSION_CODE -> {
-                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    // Permission granted, proceed with your logic
-                    //fetchContactNames()
-                } else {
-                    // Permission denied, handle accordingly (show a message, etc.)
-                    finish()
-                }
-                return
-            }
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // PERMISSION GRANTED
+        } else {
+            // PERMISSION NOT GRANTED
+            finish()
         }
     }
 }
@@ -202,15 +181,26 @@ fun ContactListItem(contact: Contact, onClick: () -> Unit) {
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Color.Gray)
+                .background(Color.Gray),
+            contentAlignment = Alignment.Center
         ) {
             // You can load the contact image here
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            Log.d("MainAPhoto:", "photouri: ${contact.photoUri}")
+            if (contact.photoUri == Uri.EMPTY){
+                Icon(imageVector = Icons.Default.Person,
+                    contentDescription = "Profile Pic",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(56.dp))
+            }
+            else{
+                AsyncImage(
+                    model = contact.photoUri,
+                    contentDescription = "Profile Pic",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
 
         // Contact Name
@@ -222,7 +212,7 @@ fun ContactListItem(contact: Contact, onClick: () -> Unit) {
         )
 
         // Person Icon
-        Icon(imageVector = Icons.Default.Person, contentDescription = null)
+        Icon(imageVector = Icons.Default.Info, contentDescription = "More info", tint= Color.LightGray)
     }
 }
 

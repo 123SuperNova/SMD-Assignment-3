@@ -7,27 +7,33 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
 class ContactItemViewModel(private val dbHelper: DBHelper) : ViewModel() {
+
+}
+
+class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     private val _contact = MutableLiveData<EditContact>()
     val contact: LiveData<EditContact> get() = _contact
 
-    private val _phoneList = MutableLiveData<List<EditPhoneNumber>>()
-    val phoneList: LiveData<List<EditPhoneNumber>> get() = _phoneList
+    private val _currphoneList = MutableLiveData<List<EditPhoneNumber>>()
+    val currphoneList: LiveData<List<EditPhoneNumber>> get() = _currphoneList
 
-    init {
-        // Initialize with data from DBHelper
-    }
+    private val _contactList = MutableLiveData<List<Contact>>()
+    val contactList: LiveData<List<Contact>> get() = _contactList
 
-    fun getContact(id: String): Contact? {
+    private val _phoneList = MutableLiveData<List<ContactPhoneNumber>>()
+    val phoneList: LiveData<List<ContactPhoneNumber>> get() = _phoneList
+
+    fun getContact2(id: String): Contact? {
         var temp = dbHelper.getContactFromId(id)
-        _contact.value = EditContact(temp.id, temp.name)
+        _contact.value = EditContact(temp.id, temp.name, temp.photoUri)
         return temp
     }
 
-    fun getPhone(contact_id: String): List<ContactPhoneNumber>? {
+    fun getPhone2(contact_id: String): List<ContactPhoneNumber>? {
         var temp = dbHelper.allPhoneNumbersOf(contact_id)
-        _phoneList.value = emptyList()
+        _currphoneList.value = emptyList()
         for (t in temp){
-            _phoneList.value = (_phoneList.value ?: emptyList()) + EditPhoneNumber(t.id, t.contact_id, t.phoneNumber)
+            _currphoneList.value = (_currphoneList.value ?: emptyList()) + EditPhoneNumber(t.id, t.contact_id, t.phoneNumber)
         }
         return temp
     }
@@ -38,37 +44,29 @@ class ContactItemViewModel(private val dbHelper: DBHelper) : ViewModel() {
 
     fun tempUpdateContactPhone(updatedPhone: EditPhoneNumber) {
         // Find the position of the updated phone in the list and update it
-        val updatedList = _phoneList.value?.toMutableList() ?: mutableListOf()
+        val updatedList = _currphoneList.value?.toMutableList() ?: mutableListOf()
         val index = updatedList.indexOfFirst { it.id == updatedPhone.id }
         if (index != -1) {
             updatedList[index] = updatedPhone
-            _phoneList.value = updatedList
+            _currphoneList.value = updatedList
         }
     }
 
     fun UpdateDBContactName(item: EditContact) {
         viewModelScope.launch {
             dbHelper.updateContactName(item.id.toString(), item.name)
-            getContact(item.id.toString())
+            dbHelper.updateContactPhoto(item.id.toString(), item.photoUri.toString())
+            refreshContactData()
         }
     }
 
     fun UpdateDBContactPhone(item: EditPhoneNumber) {
         viewModelScope.launch {
             dbHelper.updateContactNumber(item.id, item.phoneNumber)
-            getPhone(item.contact_id.toString())
+            refreshPhoneData()
             //Log.d("ContactViewModel", "Updated data - Phone List: ${item.phoneNumber}")
         }
     }
-}
-
-class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
-
-    private val _contactList = MutableLiveData<List<Contact>>()
-    val contactList: LiveData<List<Contact>> get() = _contactList
-
-    private val _phoneList = MutableLiveData<List<ContactPhoneNumber>>()
-    val phoneList: LiveData<List<ContactPhoneNumber>> get() = _phoneList
 
     init {
         // Initialize with data from DBHelper
@@ -102,7 +100,7 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     // Use coroutine scope for database operations
     fun addContact(item: Contact) {
         viewModelScope.launch {
-            dbHelper.addContactData(item.name, item.id.toString())
+            dbHelper.addContactData(item.name, item.id.toString(), item.photoUri.toString())
             refreshContactData()
         }
     }

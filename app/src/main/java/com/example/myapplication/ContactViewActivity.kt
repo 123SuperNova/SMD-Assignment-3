@@ -3,12 +3,11 @@ package com.example.myapplication
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,21 +46,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import java.io.Serializable
 
 class ContactViewActivity : ComponentActivity() {
-    lateinit var contact: Contact
-    lateinit var contactPhoneList: List<ContactPhoneNumber>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val i = intent
-        val contactID = i.getSerializableExtra("key")
+
+        val contactID = i.serializable<Long>("key")
 
         val myApplication = application as MyApplication
 
@@ -79,11 +79,16 @@ class ContactViewActivity : ComponentActivity() {
                     ContactPage(
                         this,
                         contactID.toString(),
-                        myApplication.contactItemViewModel
+                        myApplication.contactViewModel
                     )
                 }
             }
         }
+    }
+
+    private inline fun <reified T : Serializable> Intent.serializable(key: String): T? = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> getSerializableExtra(key, T::class.java)
+        else -> @Suppress("DEPRECATION") getSerializableExtra(key) as? T
     }
 }
 
@@ -92,7 +97,7 @@ class ContactViewActivity : ComponentActivity() {
 fun ContactPage(
     contactViewActivity: ContactViewActivity,
     contactId: String,
-    viewModel: ContactItemViewModel
+    viewModel: ContactViewModel
 ){
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -101,6 +106,10 @@ fun ContactPage(
             .fillMaxSize()
             .background(Color.LightGray)
     ) {
+        viewModel.getContact2(contactId)
+        viewModel.getPhone2(contactId)
+        val contact by viewModel.contact.observeAsState()
+        val phoneList by viewModel.currphoneList.observeAsState(emptyList())
         TopAppBar(
             title = {
                 Row(
@@ -140,15 +149,26 @@ fun ContactPage(
             modifier = Modifier
                 .size(256.dp)
                 .clip(CircleShape)
-                .background(Color.Gray)
+                .background(Color.Gray),
+            contentAlignment = Alignment.Center
         ) {
             // You can load the contact image here
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (contact?.photoUri == Uri.EMPTY){
+                Icon(imageVector = Icons.Default.Person,
+                    contentDescription = "Profile Pic",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(256.dp))
+            }
+            else{
+                AsyncImage(
+                    model = contact?.photoUri,
+                    contentDescription = "Profile Pic",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -160,10 +180,6 @@ fun ContactPage(
         ) {
             // Contact Name
 
-            viewModel.getContact(contactId)
-            viewModel.getPhone(contactId)
-            val contact by viewModel.contact.observeAsState()
-            val phoneList by viewModel.phoneList.observeAsState(emptyList())
             Spacer(modifier = Modifier.height(16.dp))
             if (contact != null) {
                 LazyRow(

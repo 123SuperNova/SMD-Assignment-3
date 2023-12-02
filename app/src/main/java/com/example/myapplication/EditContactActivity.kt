@@ -1,13 +1,19 @@
 package com.example.myapplication
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
 import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +29,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,32 +53,24 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import coil.compose.AsyncImage
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class EditContactActivity : ComponentActivity() {
-    lateinit var contact: Contact
-    lateinit var contactPhoneList: List<ContactPhoneNumber>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val i = intent
-        val contactID = i.getSerializableExtra("key")
-
         val myApplication = application as MyApplication
 
-        contact = myApplication.contactViewModel.getContact(contactID.toString())!!
-
-        contactPhoneList = myApplication.contactViewModel.getPhone(contactID.toString())!!
 
         setContent {
             MyApplicationTheme {
@@ -82,8 +81,7 @@ class EditContactActivity : ComponentActivity() {
                 ) {
                     EditContactPage(
                         this,
-                        contactID.toString(),
-                        myApplication.contactItemViewModel
+                        myApplication.contactViewModel
                     )
                 }
             }
@@ -95,8 +93,7 @@ class EditContactActivity : ComponentActivity() {
 @Composable
 fun EditContactPage(
     editContactActivity: EditContactActivity,
-    contactId: String,
-    viewModel: ContactItemViewModel
+    viewModel: ContactViewModel
 ){
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -105,6 +102,33 @@ fun EditContactPage(
             .fillMaxSize()
             .background(Color.LightGray)
     ) {
+
+        val contact by viewModel.contact.observeAsState()
+        val phoneList by viewModel.currphoneList.observeAsState(emptyList())
+        Log.d("ECA", "Contact: $contact PhoneList: $phoneList")
+
+        val singlePhotoPicker = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia(),
+            onResult = {uri->
+                val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                if (uri != null) {
+                    editContactActivity.contentResolver.takePersistableUriPermission(uri, flag)
+                }
+                Log.d("ECA Photo", "$uri")
+                if ((uri != Uri.EMPTY) and (uri != null)) {
+                    if (contact?.id != null) {
+                        viewModel.tempUpdateContactName(
+                            EditContact(
+                                contact!!.id,
+                                contact!!.name,
+                                uri
+                            )
+                        )
+                    }
+                }
+            }
+        )
+
         TopAppBar(
             title = {
                 Row(
@@ -116,16 +140,12 @@ fun EditContactPage(
                     IconButton(onClick = {
                         // Go back to Main Page
                         editContactActivity.finish()
-                    }) {
+                    }
+                    ) {
                         Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Go Back")
                     }
                     Text("Edit Contact")
-                    IconButton(onClick = {
-                        // Go back to Main Page
-                        editContactActivity.finish()
-                    }) {
-                        Icon(imageVector = Icons.Filled.SaveAlt, contentDescription = "Save Changes")
-                    }
+                    Spacer(modifier = Modifier.padding(horizontal = 32.dp))
                 }
             },
             actions = {
@@ -152,24 +172,56 @@ fun EditContactPage(
             }
         }
         Spacer(modifier = Modifier.height(32.dp))
+
         Box(
-            modifier = Modifier
-                .size(256.dp)
-                .clip(CircleShape)
-                .background(Color.Gray)
+           modifier = Modifier
+               .size(256.dp)
+               .clip(CircleShape)
+               .background(Color.Gray)
+               .clickable {
+                   if (contact?.photoUri == Uri.EMPTY) {
+                       // Open the gallery to select an image
+                       singlePhotoPicker.launch(
+                           PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                       )
+                   } else {
+                       if (contact?.id != null) {
+                           viewModel.tempUpdateContactName(
+                               EditContact(
+                                   contact!!.id.toLong(),
+                                   contact!!.name.toString(),
+                                   Uri.EMPTY
+                               )
+                           )
+                       }
+                       //imageUri = null;
+                   }
+               },
+           contentAlignment = Alignment.Center
         ) {
-            // You can load the contact image here
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (contact?.photoUri != Uri.EMPTY){
+                AsyncImage(
+                    model = contact?.photoUri,
+                    contentDescription = "Profile Pic",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Crop
+                )
+                Icon(imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove Image",
+                    tint = Color.LightGray,
+                    modifier = Modifier
+                        .size(120.dp))
+            }
+            else{
+                Icon(imageVector = Icons.Default.Add,
+                    contentDescription = "Add Image",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(120.dp))
+            }
+
         }
 
-        val contact by viewModel.contact.observeAsState()
-        val phoneList by viewModel.phoneList.observeAsState(emptyList())
-        Log.d("ECA", "Contact: $contact PhoneList: $phoneList")
 
         // Contact Name
         Spacer(modifier = Modifier.height(16.dp))
@@ -227,6 +279,7 @@ fun EditContactPage(
                         viewModel.UpdateDBContactPhone(pN)
                     }
                     mToast(editContactActivity, "Contact Updated.")
+                    editContactActivity.finish()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,13 +291,19 @@ fun EditContactPage(
     }
 }
 
+
+
+
+fun openGallery(launcher: ActivityResultLauncher<String>) {
+    launcher.launch("image/*")
+}
+
 @Composable
 fun EditPhoneNumItem(
     contactPhoneNumber: EditPhoneNumber,
-    viewModel: ContactItemViewModel,
+    viewModel: ContactViewModel,
     focusRequester: FocusRequester
 ){
-    val ctx = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

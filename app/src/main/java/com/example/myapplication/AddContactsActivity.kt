@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
 import androidx.activity.ComponentActivity
@@ -112,7 +113,7 @@ class AddContactsActivity : ComponentActivity() {
                     val displayName = it.getString(displayNameIndex)
                     val contactId = it.getString(contactIdIndex)
 
-                    allContacts.add(Contact(contactId.toLong(), displayName))
+                    allContacts.add(Contact(contactId.toLong(), displayName, Uri.EMPTY))
                 } while (it.moveToNext())
             }
         }
