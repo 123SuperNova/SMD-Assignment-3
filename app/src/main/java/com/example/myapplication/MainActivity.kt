@@ -70,6 +70,17 @@ class MainActivity : ComponentActivity(){
             // Permission is not granted, request it
             requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
+//        if (ContextCompat.checkSelfPermission(
+//                this,
+//                Manifest.permission.READ_EXTERNAL_STORAGE
+//            ) == PackageManager.PERMISSION_GRANTED
+//        ) {
+//            // Permission is granted
+//
+//        } else {
+//            // Permission is not granted, request it
+//            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+//        }
         setContent {
             MyApplicationTheme {
                 val myApplication = application as MyApplication
@@ -117,9 +128,6 @@ fun MainPage(
                     // Create an explicit intent to start SecondActivity
                     val intent = Intent(mainActivity, DeleteContactsActivity::class.java)
 
-                    // Add any extra data you want to pass to SecondActivity
-                    //intent.putExtra("key", "Hello from MainActivity!")
-
                     // Start SecondActivity
                     mainActivity.startActivity(intent)
                 }) {
@@ -129,9 +137,6 @@ fun MainPage(
                 IconButton(onClick = {
                     // Create an explicit intent to start SecondActivity
                     val intent = Intent(mainActivity, AddContactsActivity::class.java)
-
-                    // Add any extra data you want to pass to SecondActivity
-                    //intent.putExtra("key", "Hello from MainActivity!")
 
                     // Start SecondActivity
                     mainActivity.startActivity(intent)

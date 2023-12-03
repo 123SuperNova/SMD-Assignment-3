@@ -1,6 +1,9 @@
 package com.example.myapplication
 
+import android.annotation.SuppressLint
 import android.net.Uri
+import android.os.Build
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -138,10 +141,18 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
         }
     }
 
+    @SuppressLint("Recycle")
     fun imageUriExists(uri: Uri?): Boolean {
-        // Implement logic to check if the imageUri exists
-        // For example, you can check if it's not null and if the file exists
-        return uri != null && File(uri.path ?: "").exists()
+        if (Build.VERSION.SDK_INT > 29) {
+            // API level is greater than 29
+            return uri != null && File(uri.path ?: "").exists()
+        }else{
+            if (uri != null) {
+                Log.d("SDK<30", "URI $uri Exists?: don't know")
+
+            }
+            return true
+        }
     }
 }
 

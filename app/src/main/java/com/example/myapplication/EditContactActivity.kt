@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -45,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +74,8 @@ import kotlin.properties.Delegates
 class EditContactActivity : ComponentActivity() {
     private var contactID by Delegates.notNull<Long>()
 
+    var imageUriState  = mutableStateOf<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -93,6 +98,7 @@ class EditContactActivity : ComponentActivity() {
             }
         }
     }
+
     private inline fun <reified T : Serializable> Intent.serializable(key: String): T? = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> getSerializableExtra(key, T::class.java)
         else -> @Suppress("DEPRECATION") getSerializableExtra(key) as? T
@@ -104,254 +110,295 @@ class EditContactActivity : ComponentActivity() {
         myApplication.contactViewModel.getContact2(contactID.toString())
         myApplication.contactViewModel.getPhone2(contactID.toString())
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditContactPage(
-    editContactActivity: EditContactActivity,
-    viewModel: ContactViewModel
-){
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top,
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.LightGray)
-    ) {
+    val REQUEST_IMAGE_GET = 1
 
-        val contact by viewModel.contact.observeAsState()
-        val phoneList by viewModel.currphoneList.observeAsState(emptyList())
+    @SuppressLint("QueryPermissionsNeeded")
+    fun selectImage() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "image/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_GET)
+        }
+    }
 
-        val singlePhotoPicker = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia(),
-            onResult = {uri->
-                val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                if (uri != null) {
-                    editContactActivity.contentResolver.takePersistableUriPermission(uri, flag)
-                }
-                if ((uri != Uri.EMPTY) and (uri != null)) {
-                    if (contact?.id != null) {
-                        viewModel.tempUpdateContactName(
-                            EditContact(
-                                contact!!.id,
-                                contact!!.name,
-                                uri
-                            )
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_IMAGE_GET && resultCode == Activity.RESULT_OK) {
+            val fullPhotoUri: Uri? = data?.data
+            val myApplication = application as MyApplication
+            if ((fullPhotoUri != Uri.EMPTY) and (fullPhotoUri != null)) {
+                if (myApplication.contactViewModel.contact.value?.id != null) {
+                    myApplication.contactViewModel.tempUpdateContactName(
+                        EditContact(
+                            myApplication.contactViewModel.contact.value!!.id,
+                            myApplication.contactViewModel.contact.value!!.name,
+                            fullPhotoUri
                         )
-                    }
+                    )
                 }
-            }
-        )
-
-        TopAppBar(
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    IconButton(onClick = {
-                        // Go back to Main Page
-                        editContactActivity.finish()
-                    }
-                    ) {
-                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Go Back")
-                    }
-                    Text("Edit Contact")
-                    Spacer(modifier = Modifier.padding(horizontal = 32.dp))
-                }
-            },
-            actions = {
-                // If you have additional actions, you can add them here
-            }
-        )
-        val focusRequester = remember { FocusRequester() }
-        val focusManager = LocalFocusManager.current
-        val view = LocalView.current
-        val viewTreeObserver = view.viewTreeObserver
-        DisposableEffect(viewTreeObserver) {
-            val listener = ViewTreeObserver.OnGlobalLayoutListener {
-                val isKeyboardOpen = ViewCompat.getRootWindowInsets(view)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) ?: true
-                // ... do anything you want here with `isKeyboardOpen`
-                if (!isKeyboardOpen){
-                    focusManager.clearFocus()
-                }
-            }
-
-            viewTreeObserver.addOnGlobalLayoutListener(listener)
-            onDispose {
-                viewTreeObserver.removeOnGlobalLayoutListener(listener)
             }
         }
-        Spacer(modifier = Modifier.height(32.dp))
+    }
 
-        Box(
-           modifier = Modifier
-               .size(256.dp)
-               .clip(CircleShape)
-               .background(Color.Gray)
-               .clickable {
-                   if (contact?.photoUri == Uri.EMPTY) {
-                       // Open the gallery to select an image
-                       singlePhotoPicker.launch(
-                           PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                       )
-                   } else {
-                       if (contact?.id != null) {
-                           viewModel.tempUpdateContactName(
-                               EditContact(
-                                   contact!!.id.toLong(),
-                                   contact!!.name.toString(),
-                                   Uri.EMPTY
-                               )
-                           )
-                       }
-                       //imageUri = null;
-                   }
-               },
-           contentAlignment = Alignment.Center
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun EditContactPage(
+        editContactActivity: EditContactActivity,
+        viewModel: ContactViewModel
+    ){
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.LightGray)
         ) {
-            if (contact?.photoUri != Uri.EMPTY){
-                AsyncImage(
-                    model = contact?.photoUri,
-                    contentDescription = "Profile Pic",
-                    modifier = Modifier.fillMaxWidth(),
-                    contentScale = ContentScale.Crop
-                )
-                Icon(imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove Image",
-                    tint = Color.LightGray,
-                    modifier = Modifier
-                        .size(120.dp))
+
+            val contact by viewModel.contact.observeAsState()
+            val phoneList by viewModel.currphoneList.observeAsState(emptyList())
+
+            val singlePhotoPicker = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.PickVisualMedia(),
+                onResult = {uri->
+                    val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    if (uri != null) {
+                        editContactActivity.contentResolver.takePersistableUriPermission(uri, flag)
+                    }
+                    if ((uri != Uri.EMPTY) and (uri != null)) {
+                        if (contact?.id != null) {
+                            viewModel.tempUpdateContactName(
+                                EditContact(
+                                    contact!!.id,
+                                    contact!!.name,
+                                    uri
+                                )
+                            )
+                        }
+                    }
+                }
+            )
+
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        IconButton(onClick = {
+                            // Go back to Main Page
+                            editContactActivity.finish()
+                        }
+                        ) {
+                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Go Back")
+                        }
+                        Text("Edit Contact")
+                        Spacer(modifier = Modifier.padding(horizontal = 32.dp))
+                    }
+                },
+                actions = {
+                    // If you have additional actions, you can add them here
+                }
+            )
+            val focusRequester = remember { FocusRequester() }
+            val focusManager = LocalFocusManager.current
+            val view = LocalView.current
+            val viewTreeObserver = view.viewTreeObserver
+            DisposableEffect(viewTreeObserver) {
+                val listener = ViewTreeObserver.OnGlobalLayoutListener {
+                    val isKeyboardOpen = ViewCompat.getRootWindowInsets(view)
+                        ?.isVisible(WindowInsetsCompat.Type.ime()) ?: true
+                    // ... do anything you want here with `isKeyboardOpen`
+                    if (!isKeyboardOpen){
+                        focusManager.clearFocus()
+                    }
+                }
+
+                viewTreeObserver.addOnGlobalLayoutListener(listener)
+                onDispose {
+                    viewTreeObserver.removeOnGlobalLayoutListener(listener)
+                }
             }
-            else{
-                Icon(imageVector = Icons.Default.Add,
-                    contentDescription = "Add Image",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(120.dp))
-            }
 
-        }
-
-
-        // Contact Name
-        Spacer(modifier = Modifier.height(16.dp))
-        if (contact != null) {
-            OutlinedTextField(
-                value = contact!!.name,
-                onValueChange = { viewModel.tempUpdateContactName(contact!!.copy(name = it)) },
-                textStyle = TextStyle(
-                    textAlign = TextAlign.Center,
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 40.sp
-                ),
-                singleLine = true,
+            LazyColumn (
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(6.0f)
                     .padding(8.dp)
+            ) {
+                item{
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(256.dp)
+                            .clip(CircleShape)
+                            .background(Color.Gray)
+                            .clickable {
+                                if (contact?.photoUri == Uri.EMPTY) {
+                                    // Open the gallery to select an image
+                                    if (Build.VERSION.SDK_INT > 30) {
+                                        singlePhotoPicker.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }else{
+                                        selectImage()
+                                    }
+                                } else {
+                                    if (contact?.id != null) {
+                                        viewModel.tempUpdateContactName(
+                                            EditContact(
+                                                contact!!.id.toLong(),
+                                                contact!!.name.toString(),
+                                                Uri.EMPTY
+                                            )
+                                        )
+                                    }
+                                    //imageUri = null;
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (contact?.photoUri != Uri.EMPTY){
+                            AsyncImage(
+                                model = contact?.photoUri,
+                                contentDescription = "Profile Pic",
+                                modifier = Modifier.fillMaxWidth(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Icon(imageVector = Icons.Default.Delete,
+                                contentDescription = "Remove Image",
+                                tint = Color.LightGray,
+                                modifier = Modifier
+                                    .size(120.dp))
+                        }
+                        else{
+                            Icon(imageVector = Icons.Default.Add,
+                                contentDescription = "Add Image",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(120.dp))
+                        }
+
+                    }
+
+
+                    // Contact Name
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (contact != null) {
+                        OutlinedTextField(
+                            value = contact!!.name,
+                            onValueChange = { viewModel.tempUpdateContactName(contact!!.copy(name = it)) },
+                            textStyle = TextStyle(
+                                textAlign = TextAlign.Center,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 40.sp
+                            ),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .background(Color.White)
+                                .focusRequester(focusRequester)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                items(phoneList) { phoneNum ->
+                    EditPhoneNumItem(contactPhoneNumber = phoneNum, viewModel=viewModel, focusRequester = focusRequester)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
                     .background(Color.White)
-                    .focusRequester(focusRequester)
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyColumn (
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(2.0f)
-                .padding(8.dp)
-        ) {
-            items(phoneList) { phoneNum ->
-                EditPhoneNumItem(contactPhoneNumber = phoneNum, viewModel=viewModel, focusRequester = focusRequester)
-                Spacer(modifier = Modifier.height(8.dp))
+                    .padding(16.dp)
+                    .weight(1f)
+            ) {
+                Button(
+                    onClick = {
+                        if (TextUtils.isEmpty(contact?.name)) {
+                            mToast(editContactActivity, "Please enter Name.")
+                            return@Button;
+                        }
+                        for (pN in phoneList) {
+                            if (TextUtils.isEmpty(pN.phoneNumber)) {
+                                mToast(editContactActivity, "Please enter Phone Number.")
+                                return@Button;
+                            }
+                        }
+                        contact?.let { viewModel.updateDBContactName(it) }
+                        for (pN in phoneList) {
+                            viewModel.updateDBContactPhone(pN)
+                        }
+                        mToast(editContactActivity, "Contact Updated.")
+                        editContactActivity.finish()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = "Save",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
+    }
+
+    @Composable
+    fun EditPhoneNumItem(
+        contactPhoneNumber: EditPhoneNumber,
+        viewModel: ContactViewModel,
+        focusRequester: FocusRequester
+    ){
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
                 .background(Color.White)
-                .padding(16.dp)
-                .weight(1f)
+                .padding(8.dp)
         ) {
-            Button(
-                onClick = {
-                    if (TextUtils.isEmpty(contact?.name)) {
-                        mToast(editContactActivity, "Please enter Name.")
-                        return@Button;
-                    }
-                    for (pN in phoneList) {
-                        if (TextUtils.isEmpty(pN.phoneNumber)) {
-                            mToast(editContactActivity, "Please enter Phone Number.")
-                            return@Button;
-                        }
-                    }
-                    contact?.let { viewModel.updateDBContactName(it) }
-                    for (pN in phoneList) {
-                        viewModel.updateDBContactPhone(pN)
-                    }
-                    mToast(editContactActivity, "Contact Updated.")
-                    editContactActivity.finish()
+            OutlinedTextField(
+                value = contactPhoneNumber.phoneNumber,
+                singleLine = true,
+                onValueChange = {
+                    viewModel.tempUpdateContactPhone(
+                        EditPhoneNumber(
+                            contactPhoneNumber.id,
+                            contactPhoneNumber.contact_id,
+                            it
+                        )
+                    ).toString()
                 },
+                //label = { Text(contactPhoneNumber.phoneNumber) },
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    keyboardType = KeyboardType.Number
+                ),
+                textStyle = TextStyle(
+                    textAlign = TextAlign.Center,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Text(
-                    text = "Save",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                    .focusRequester(focusRequester)
+            )
         }
-    }
-}
-
-@Composable
-fun EditPhoneNumItem(
-    contactPhoneNumber: EditPhoneNumber,
-    viewModel: ContactViewModel,
-    focusRequester: FocusRequester
-){
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.White)
-            .padding(8.dp)
-    ) {
-        OutlinedTextField(
-            value = contactPhoneNumber.phoneNumber,
-            singleLine = true,
-            onValueChange = {
-                viewModel.tempUpdateContactPhone(
-                    EditPhoneNumber(
-                        contactPhoneNumber.id,
-                        contactPhoneNumber.contact_id,
-                        it
-                    )
-                ).toString()
-            },
-            //label = { Text(contactPhoneNumber.phoneNumber) },
-            keyboardOptions = KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Number
-            ),
-            textStyle = TextStyle(
-                textAlign = TextAlign.Center,
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester)
-        )
     }
 }
