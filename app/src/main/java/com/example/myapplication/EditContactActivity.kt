@@ -45,10 +45,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -243,19 +245,19 @@ class EditContactActivity : ComponentActivity() {
                             .clickable {
                                 if (contact?.photoUri == Uri.EMPTY) {
                                     // Open the gallery to select an image
-                                    if (Build.VERSION.SDK_INT > 30) {
+                                    if (Build.VERSION.SDK_INT > 29) {
                                         singlePhotoPicker.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
-                                    }else{
+                                    } else {
                                         selectImage()
                                     }
                                 } else {
                                     if (contact?.id != null) {
                                         viewModel.tempUpdateContactName(
                                             EditContact(
-                                                contact!!.id.toLong(),
-                                                contact!!.name.toString(),
+                                                contact!!.id,
+                                                contact!!.name,
                                                 Uri.EMPTY
                                             )
                                         )

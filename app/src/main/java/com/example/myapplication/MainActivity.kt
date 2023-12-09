@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity(){
         setContent {
             MyApplicationTheme {
                 val myApplication = application as MyApplication
-                myApplication.contactViewModel.checkAllImageUris()
+                myApplication.contactViewModel.checkAllImageUris(this)
                 MainPage(
                     this,
                     myApplication.contactViewModel
@@ -149,37 +150,45 @@ fun MainPage(
         val contactList by viewModel.contactList.observeAsState(emptyList())
 
         // Contacts List
-        LazyColumn (
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            if (contactList.isEmpty()) {
-                item {
-                    Text(
-                        text = "There are no contacts yet,\nclick the + button to add new contacts.",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .padding(16.dp)
-                    )
-                }
-            } else {
-                items(contactList) { contact ->
-                    ContactListItem(contact = contact) {
-                        // Handle item click and navigate to ContactPage
-                        // Create an explicit intent to start SecondActivity
-                        val intent = Intent(mainActivity, ContactViewActivity::class.java)
-
-                        // Add any extra data you want to pass to SecondActivity
-                        intent.putExtra("key", contact.id)
-
-                        // Start SecondActivity
-                        mainActivity.startActivity(intent)
+        if (viewModel.loading.value == true){
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(50.dp)
+            )
+        }
+        else {
+            LazyColumn(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                if (contactList.isEmpty()) {
+                    item {
+                        Text(
+                            text = "There are no contacts yet,\nclick the + button to add new contacts.",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(16.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    items(contactList) { contact ->
+                        ContactListItem(contact = contact) {
+                            // Handle item click and navigate to ContactPage
+                            // Create an explicit intent to start SecondActivity
+                            val intent = Intent(mainActivity, ContactViewActivity::class.java)
+
+                            // Add any extra data you want to pass to SecondActivity
+                            intent.putExtra("key", contact.id)
+
+                            // Start SecondActivity
+                            mainActivity.startActivity(intent)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
         }

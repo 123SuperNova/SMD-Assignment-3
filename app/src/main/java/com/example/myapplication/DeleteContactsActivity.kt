@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,8 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DeleteContactsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +53,7 @@ class DeleteContactsActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 val myApplication = application as MyApplication
+                val composableScope = rememberCoroutineScope()
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -52,11 +61,8 @@ class DeleteContactsActivity : ComponentActivity() {
                 ) {
                     DeleteContactsPage(
                         this,
-                        myApplication.contactViewModel.contactList.value.orEmpty(),
-                        onDeleteSelectedContacts = {selectedContacts ->
-                            myApplication.contactViewModel.removeAllContactsAndPhone(selectedContacts)
-                            mToast(this, "Contacts Deleted")
-                        })
+                        myApplication.contactViewModel
+                    )
                 }
             }
         }
@@ -67,11 +73,11 @@ class DeleteContactsActivity : ComponentActivity() {
 @Composable
 fun DeleteContactsPage(
     deleteContactsActivity: DeleteContactsActivity,
-    contactsList: List<Contact>,
-    onDeleteSelectedContacts: (List<Contact>) -> Unit
+    viewModel: ContactViewModel
 ) {
     var checked by remember { mutableStateOf(false) }
     var contactsToDelete by remember { mutableStateOf(emptyList<Contact>()) }
+    val contactsList by viewModel.contactList.observeAsState(emptyList())
 
     Column(
         modifier = Modifier
@@ -165,20 +171,48 @@ fun DeleteContactsPage(
                 .weight(1f)
         ) {
             // Delete Button
+            var isDeletingContacts by remember { mutableStateOf(false) }
+            val composableScope = rememberCoroutineScope()
+
             Button(
+                enabled = contactsToDelete.isNotEmpty() && !isDeletingContacts,
                 onClick = {
                     // Handle button click
-                    onDeleteSelectedContacts(contactsToDelete)
-                    deleteContactsActivity.finish()
+                    composableScope.launch {
+                        try {
+                            withContext(Dispatchers.Main) {
+                                isDeletingContacts = true
+                            }
+                            withContext(Dispatchers.IO){
+                                viewModel.removeAllContactsAndPhone(
+                                    contactsToDelete
+                                )
+                                delay(100)
+                            }
+                        }finally {
+                            withContext(Dispatchers.Main) {
+                                mToast(deleteContactsActivity, "Contact(s) Deleted")
+                                deleteContactsActivity.finish()
+                                isDeletingContacts = false
+                            }
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
             ) {
-                Text(
-                    text = "Delete Selected Contacts",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isDeletingContacts) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(30.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Delete Selected Contacts",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

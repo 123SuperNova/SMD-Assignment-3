@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,9 +30,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +47,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AddContactsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,43 +64,11 @@ class AddContactsActivity : ComponentActivity() {
                 ) {
                     AddContactsPage(
                         this,
-                        contactList = myApplication.contactViewModel.contactList.value.orEmpty(),
-                        onAddSelectedContacts = {selectedContacts ->
-                            for (newContact in selectedContacts) {
-                                myApplication.contactViewModel.addContact(newContact)
-                                val phoneNumbers = getContactPhoneNumbers(newContact.id.toString())
-                                for (pN in phoneNumbers) {
-                                    myApplication.contactViewModel.addPhone(pN)
-                                }
-                            }
-                            mToast(this, "Contacts Added")
-                        }
+                        myApplication.contactViewModel
                     )
                 }
             }
         }
-    }
-
-    private fun getContactPhoneNumbers(contactId: String): List<ContactPhoneNumber> {
-        val phoneNumbers = mutableListOf<ContactPhoneNumber>()
-        val phoneCursor = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            null,
-            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
-            arrayOf(contactId),
-            null
-        )
-
-        phoneCursor?.use { phCursor ->
-            val phoneNumberIndex = phCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-
-            while (phCursor.moveToNext()) {
-                val phoneNumber = phCursor.getString(phoneNumberIndex)
-                phoneNumbers.add(ContactPhoneNumber(generateUniqueId()?:"",contactId.toLong(), phoneNumber))
-            }
-        }
-
-        return phoneNumbers
     }
 
     fun fetchContactNames(): ArrayList<Contact> {
@@ -123,10 +100,6 @@ class AddContactsActivity : ComponentActivity() {
 
         return allContacts
     }
-
-    private fun generateUniqueId(): String? {
-        return UUID.randomUUID().toString()
-    }
 }
 
 
@@ -134,13 +107,28 @@ class AddContactsActivity : ComponentActivity() {
 @Composable
 fun AddContactsPage(
     addContactsActivity: AddContactsActivity,
-    contactList: List<Contact>,
-    onAddSelectedContacts: (List<Contact>) -> Unit
+    viewModel: ContactViewModel
 ) {
     // Filter out the contacts in contactList
-    val allContacts = addContactsActivity.fetchContactNames()
-    val contacts = allContacts.filterNot { contact ->
-        contactList.any { it.id == contact.id }
+    var counter by remember { mutableIntStateOf(0) }
+    var contacts by remember { mutableStateOf<List<Contact>>(emptyList())}
+    val contactList by viewModel.contactList.observeAsState(emptyList())
+
+    LaunchedEffect(counter) {
+        launch {
+            withContext(Dispatchers.IO){
+                val allContacts = addContactsActivity.fetchContactNames()
+                contacts = allContacts.filterNot { contact ->
+                    contactList.any { it.id == contact.id }
+                }
+            }
+        }
+    }
+    DisposableEffect(counter) {
+        onDispose {
+            // Cleanup or side effect when composable is disposed
+            counter = 0
+        }
     }
 
     // Use remember or mutableStateOf to manage the new contact list
@@ -241,20 +229,49 @@ fun AddContactsPage(
                 .padding(16.dp)
                 .weight(1f)
         ) {
+
+            val composableScope = rememberCoroutineScope()
+            var isAddingContacts by remember { mutableStateOf(false) }
             Button(
+                enabled = newContactList.isNotEmpty() && !isAddingContacts,
                 onClick = {
                     // Handle button click
-                    onAddSelectedContacts(newContactList)
-                    addContactsActivity.finish()
+                    composableScope.launch {
+                        try {
+                            withContext(Dispatchers.Main) {
+                                isAddingContacts = true
+                            }
+                            withContext(Dispatchers.IO) {
+                                viewModel.addAllContactsAndPhone(
+                                    addContactsActivity.contentResolver,
+                                    newContactList
+                                )
+                                //delay(100)
+                            }
+                        } finally {
+                            // This block is executed even if there's an exception
+                            withContext(Dispatchers.Main) {
+                                mToast(addContactsActivity, "Contact(s) Added")
+                                addContactsActivity.finish()
+                                isAddingContacts = false
+                            }
+                        }
+                    }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Add Selected Contacts",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isAddingContacts) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(30.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Add Selected Contacts",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

@@ -1,17 +1,24 @@
 package com.example.myapplication
 
 import android.annotation.SuppressLint
+import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
-import android.os.Build
+import android.provider.ContactsContract
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
+    private val _loading = MutableLiveData<Boolean>()
+    val loading: LiveData<Boolean> get() = _loading
+
     private val _contact = MutableLiveData<EditContact>()
     val contact: LiveData<EditContact> get() = _contact
 
@@ -23,6 +30,14 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
 
     private val _phoneList = MutableLiveData<List<ContactPhoneNumber>>()
     val phoneList: LiveData<List<ContactPhoneNumber>> get() = _phoneList
+
+    fun setLoading(){
+        _loading.value = true
+    }
+
+    fun endLoading(){
+        _loading.value = false
+    }
 
     fun getContact2(id: String): Contact? {
         val temp = dbHelper.getContactFromId(id)
@@ -77,17 +92,13 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     // Use coroutine scope for database operations
 
     fun refreshContactData() {
-        viewModelScope.launch {
-            _contactList.value = dbHelper.allUsers
-            //Log.d("ContactViewModel", "Refreshed data - Contact List: ${_contactList.value}")
-        }
+        _contactList.value = dbHelper.allUsers
+        //Log.d("ContactViewModel", "Refreshed data - Contact List: ${_contactList.value}")
     }
 
     fun refreshPhoneData() {
-        viewModelScope.launch {
-            _phoneList.value = dbHelper.allPhoneNumbers
-            //Log.d("ContactViewModel", "Refreshed data - Phone List: ${_phoneList.value}")
-        }
+        _phoneList.value = dbHelper.allPhoneNumbers
+        //Log.d("ContactViewModel", "Refreshed data - Phone List: ${_phoneList.value}")
     }
 
     fun getContact(id: String): Contact? {
@@ -109,28 +120,83 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     // Use coroutine scope for database operations
     fun addPhone(item: ContactPhoneNumber) {
         viewModelScope.launch {
-            dbHelper.addContactNumberData(item.phoneNumber, item.contact_id.toString(),item.id.toString())
+            dbHelper.addContactNumberData(
+                item.phoneNumber,
+                item.contact_id.toString(),
+                item.id
+            )
             refreshPhoneData()
         }
+    }
+
+    fun addAllContactsAndPhone(contentResolver: ContentResolver, items: List<Contact>) {
+        viewModelScope.launch {
+            for (item in items) {
+                addContact(item)
+                val phoneNumbers = getContactPhoneNumbers(contentResolver, item.id.toString())
+                for (pN in phoneNumbers) {
+                    addPhone(pN)
+                }
+            }
+            refreshContactData()
+            endLoading()
+        }
+    }
+
+    private fun getContactPhoneNumbers(contentResolver: ContentResolver, contactId: String): List<ContactPhoneNumber> {
+        val phoneNumbers = mutableListOf<ContactPhoneNumber>()
+        viewModelScope.launch {
+            val phoneCursor = contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                null,
+                ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                arrayOf(contactId),
+                null
+            )
+
+            phoneCursor?.use { phCursor ->
+                val phoneNumberIndex =
+                    phCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+
+                while (phCursor.moveToNext()) {
+                    val phoneNumber = phCursor.getString(phoneNumberIndex)
+                    phoneNumbers.add(
+                        ContactPhoneNumber(
+                            generateUniqueId() ?: "",
+                            contactId.toLong(),
+                            phoneNumber
+                        )
+                    )
+                }
+            }
+        }
+        return phoneNumbers
+    }
+
+    private fun generateUniqueId(): String? {
+        return UUID.randomUUID().toString()
     }
 
     // Use coroutine scope for database operations
     fun removeAllContactsAndPhone(items: List<Contact>) {
         viewModelScope.launch {
-            for (item in items) {
-                dbHelper.deleteContactNumberData(item.id.toString())
-                dbHelper.deleteContactData(item.id.toString())
+            withContext(Dispatchers.IO) {
+                for (item in items) {
+                    dbHelper.deleteContactNumberData(item.id.toString())
+                    dbHelper.deleteContactData(item.id.toString())
+                }
             }
             refreshContactData()
+            endLoading()
         }
     }
 
-    fun checkAllImageUris() {
+    fun checkAllImageUris(context: Context) {
         viewModelScope.launch {
             for (contact in _contactList.value.orEmpty()) {
                 val imageUri = contact.photoUri
                 // Do something with the imageUri, for example, check if it exists
-                if (imageUriExists(imageUri)) {
+                if (imageUriExists(context, imageUri)) {
                     // Image URI exists, handle accordingly
                 } else {
                     // Image URI does not exist, handle accordingly
@@ -142,16 +208,15 @@ class ContactViewModel(private val dbHelper: DBHelper) : ViewModel() {
     }
 
     @SuppressLint("Recycle")
-    fun imageUriExists(uri: Uri?): Boolean {
-        if (Build.VERSION.SDK_INT > 29) {
-            // API level is greater than 29
-            return uri != null && File(uri.path ?: "").exists()
-        }else{
-            if (uri != null) {
-                Log.d("SDK<30", "URI $uri Exists?: don't know")
-
-            }
+    fun imageUriExists(context: Context, uri: Uri?): Boolean {
+        try {
+            val inputStream = uri?.let { context.contentResolver.openInputStream(it) }
+            val fileExists = inputStream != null
+            Log.d("File Validation", "File exists?: $fileExists")
             return true
+        } catch (e: Exception) {
+            Log.e("File Validation", "Error: ${e.message}")
+            return false
         }
     }
 }
